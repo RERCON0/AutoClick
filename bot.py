@@ -58,7 +58,7 @@ class AutoClicker:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("OmniaClick")
-        self.window.geometry("900x800")
+        self.window.geometry("900x1000")
         self.window.resizable(False, False)
         
         # Центрирование окна
@@ -90,6 +90,7 @@ class AutoClicker:
         self.sound_notifications = tk.BooleanVar(value=True)
         self.hotkey_start = tk.StringVar(value="f6")
         self.hotkey_stop = tk.StringVar(value="f7")
+        self.always_on_top = tk.BooleanVar(value=False)  # Режим "всегда поверх всех окон"
         
         # Переменные для режимов
         self.click_mode = tk.StringVar(value="normal")  # normal, color, sequence, image, keyboard
@@ -162,6 +163,10 @@ class AutoClicker:
         self.window.geometry(f"{width}x{height}+{x}+{y}")
         
     def setup_gui(self):
+        # Настройка стилей
+        style = ttk.Style()
+        style.configure("Success.TButton", foreground="green")
+        
         # Создаем notebook для вкладок
         self.notebook = ttk.Notebook(self.window)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -198,10 +203,18 @@ class AutoClicker:
         self.interval_entry = ttk.Entry(interval_frame, width=10, textvariable=self.interval_var, 
                                        font=('Arial', 10), validate='key', validatecommand=vcmd)
         self.interval_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.interval_var.trace('w', self.on_interval_entry_change)
         
         # Обработка выделения текста для замены
         self.interval_entry.bind('<Key>', self.on_interval_key_press)
+        
+        # Кнопка "Применить" для интервала
+        self.apply_interval_button = ttk.Button(interval_frame, text="✓", width=3, 
+                                               command=self._apply_interval_change)
+        self.interval_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.apply_interval_button.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Обработка Enter для применения интервала
+        self.interval_entry.bind('<Return>', self._apply_interval_change)
         
         ttk.Label(interval_frame, text="(0.001 - 2.0)", font=("Arial", 8), foreground="gray").pack(side=tk.RIGHT, padx=(5, 0))
         
@@ -321,6 +334,8 @@ class AutoClicker:
                        variable=self.sound_notifications).pack(anchor=tk.W, pady=2)
         ttk.Checkbutton(extra_settings_frame, text="Пауза при движении мыши", 
                        variable=self.pause_on_mouse).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(extra_settings_frame, text="Всегда поверх всех окон", 
+                       variable=self.always_on_top, command=self.toggle_always_on_top).pack(anchor=tk.W, pady=2)
         
         # Автопауза только если win32gui доступен
         if WIN32_AVAILABLE:
@@ -666,8 +681,8 @@ class AutoClicker:
                 return False
         return True
 
-    def on_interval_entry_change(self, *args):
-        """Обработка изменения интервала через текстовое поле"""
+    def _apply_interval_change(self, event=None):
+        """Применяет изменение интервала"""
         try:
             try:
                 value = self.interval_var.get()
@@ -704,6 +719,11 @@ class AutoClicker:
                         self.interval_var.set(f"{interval:.3f}")
             except tk.TclError:
                 pass  # Если не удается получить текущее значение, игнорируем
+                
+            # Визуальная обратная связь - кнопка показывает "OK" на секунду
+            self.apply_interval_button.config(text="OK")
+            self.window.after(1000, lambda: self.apply_interval_button.config(text="✓"))
+            
         except ValueError:
             pass  # Не сбрасываем, просто игнорируем
     
@@ -1307,6 +1327,23 @@ class AutoClicker:
                                  "• ESC, F12 или Ctrl+Alt+X для экстренной остановки")
         else:
             pass  # Ничего не делаем при отключении экстремального режима
+    
+    def toggle_always_on_top(self):
+        """Переключает режим 'всегда поверх всех окон'"""
+        if self.always_on_top.get():
+            self.window.attributes('-topmost', True)
+            if self.sound_notifications.get():
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except:
+                    pass
+        else:
+            self.window.attributes('-topmost', False)
+            if self.sound_notifications.get():
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                except:
+                    pass
             
     def mode_changed(self):
         # Скрываем оверлей области при смене режима
@@ -1446,6 +1483,12 @@ class AutoClicker:
     def start_clicking(self):
         """Запуск кликера"""
         if not self.clicking:
+            # Применяем настройки режимов перед запуском
+            if self.extreme_mode.get():
+                self.interval_var.set(0.00001)
+            elif self.turbo_mode.get():
+                self.interval_var.set(0.001)
+            
             self.clicking = True
             self.click_count = 0
             # Сбрасываем счетчик повторений последовательности
@@ -2388,7 +2431,36 @@ class AutoClicker:
         
     def on_closing(self):
         try:
-            self.save_settings(show_message=False)  # Тихое сохранение при выходе
+            # Тихое сохранение настроек при выходе
+            try:
+                settings = {
+                    "interval": self.interval_var.get(),
+                    "click_type": self.click_type.get(),
+                    "turbo_mode": self.turbo_mode.get(),
+                    "extreme_mode": self.extreme_mode.get(),
+                    "pause_on_mouse": self.pause_on_mouse.get(),
+                    "pause_on_window": self.pause_on_window.get(),
+                    "sound_notifications": self.sound_notifications.get(),
+                    "always_on_top": self.always_on_top.get(),
+                    "hotkey_start": self.hotkey_start.get(),
+                    "hotkey_stop": self.hotkey_stop.get(),
+                    "click_mode": self.click_mode.get(),
+                    "target_color": self.target_color,
+                    "color_tolerance": self.color_tolerance.get(),
+                    "sequence_points": self.sequence_points,
+                    "keyboard_sequence": self.keyboard_sequence,
+                    "image_sequence": self.image_sequence,
+                    "image_sequence_repeats": self.image_sequence_repeats.get(),
+                    "search_area": self.search_area,
+                    "template_image": self.template_image,
+                    "image_confidence": self.image_confidence.get(),
+                    "image_mode": getattr(self, 'image_mode', tk.StringVar(value="single")).get()
+                }
+                
+                with open("saved_settings.json", 'w', encoding='utf-8') as f:
+                    json.dump(settings, f, indent=2, ensure_ascii=False)
+            except:
+                pass  # Игнорируем ошибки сохранения при выходе
             self.quit_app()
         except Exception as e:
             print(f"Ошибка при закрытии: {e}")
@@ -3031,6 +3103,7 @@ C:\\images\\icon.png клики=1
                 "pause_on_mouse": self.pause_on_mouse.get(),
                 "pause_on_window": self.pause_on_window.get(),
                 "sound_notifications": self.sound_notifications.get(),
+                "always_on_top": self.always_on_top.get(),
                 "hotkey_start": self.hotkey_start.get(),
                 "hotkey_stop": self.hotkey_stop.get(),
                 "click_mode": self.click_mode.get(),
@@ -3070,6 +3143,7 @@ C:\\images\\icon.png клики=1
             self.pause_on_mouse.set(settings.get("pause_on_mouse", False))
             self.pause_on_window.set(settings.get("pause_on_window", False))
             self.sound_notifications.set(settings.get("sound_notifications", True))
+            self.always_on_top.set(settings.get("always_on_top", False))
             self.hotkey_start.set(settings.get("hotkey_start", "f6"))
             self.hotkey_stop.set(settings.get("hotkey_stop", "f7"))
             self.click_mode.set(settings.get("click_mode", "normal"))
@@ -3085,6 +3159,10 @@ C:\\images\\icon.png клики=1
             
             if "image_mode" in settings and hasattr(self, 'image_mode'):
                 self.image_mode.set(settings.get("image_mode", "single"))
+            
+            # Применяем настройку "всегда поверх всех окон"
+            if self.always_on_top.get():
+                self.window.attributes('-topmost', True)
                 
             # Обновляем интерфейс
             if hasattr(self, 'color_display'):
