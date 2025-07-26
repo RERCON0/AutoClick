@@ -7,7 +7,7 @@
 **OmniaClick** - это мощный и универсальный автокликер для Windows с множеством режимов работы и продвинутыми возможностями автоматизации.
 
 ![OmniaClick Interface](https://i.imgur.com/ZPZuQyt.png)
-![OmniaClick Interface](https://i.imgur.com/dGjRimN.png)
+![OmniaClick Interface](https://i.imgur.com/xkqNbUl.png)
 
 *Интерфейс программы OmniaClick - вкладка "Основное"*
 
