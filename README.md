@@ -1,6 +1,6 @@
 # OmniaClick - Универсальный Автокликер
 
-![OmniaClick](https://img.shields.io/badge/OmniaClick-v2.0-blue)
+![OmniaClick](https://img.shields.io/badge/OmniaClick-v1.0BETA-blue)
 ![Python](https://img.shields.io/badge/Python-3.7+-green)
 ![Platform](https://img.shields.io/badge/Platform-Windows-red)
 
@@ -50,7 +50,7 @@
 
 1. **Клонируйте репозиторий:**
 ```bash
-git clone https://github.com/your-username/OmniaClick.git
+git clone https://github.com/RERCON0/OmniaClick.git
 cd OmniaClick
 ```
 
